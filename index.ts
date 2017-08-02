@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { spawn }  from "child_process";
 import * as yargs from "yargs";
 import * as fs from "fs";
