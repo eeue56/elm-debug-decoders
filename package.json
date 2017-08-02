@@ -1,6 +1,6 @@
 {
   "name": "elm-debug-decoders",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A tool to help debug decoders in Elm",
   "main": "index.js",
   "bin": {
@@ -28,7 +28,6 @@
   "dependencies": {
     "@types/node": "^8.0.19",
     "@types/yargs": "^8.0.2",
-    "elm-interface-to-json": "0.0.3",
     "yargs": "^8.0.2"
   }
 }

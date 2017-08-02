@@ -13,9 +13,11 @@ npm install -g elm-debug-decoders
 
 ## Usage
 
-This tool will generate an Elm file inside the directory you specifiy. It will use your `elm-package.json` in order to look up which decoders to pull things in from. 
+This tool will generate an Elm file inside the directory you specifiy. It will use your `elm-package.json` in order to look up which decoders to pull things in from. Make sure to run `elm-make` in the directory prior to running `elm-debug-decoders`.
 
 ```
+elm-make example/Main.elm
+
 # Load the decoders in the example dir's elm-package.json
 elm-debug-decoders --path example/
 
