@@ -1,0 +1,33 @@
+{
+  "name": "elm-debug-decoders",
+  "version": "0.0.1",
+  "description": "A tool to help debug decoders in Elm",
+  "main": "index.js",
+  "bin": {
+    "elm-debug-decoders": "index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "tsc index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eeue56/elm-debug-decoders.git"
+  },
+  "keywords": [
+    "elm",
+    "debug",
+    "decoder"
+  ],
+  "author": "eeue56",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/eeue56/elm-debug-decoders/issues"
+  },
+  "homepage": "https://github.com/eeue56/elm-debug-decoders#readme",
+  "dependencies": {
+    "@types/node": "^8.0.19",
+    "@types/yargs": "^8.0.2",
+    "elm-interface-to-json": "0.0.3"
+  }
+}
