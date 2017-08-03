@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Json.Decode as Json exposing (field)
+import Html
 
 
 type alias User =
@@ -39,3 +40,23 @@ decodeCat =
 somethingElse : String
 somethingElse =
     "example"
+
+
+viewCat : Cat -> Html.Html msg
+viewCat { lives } =
+    "I have lived for "
+        ++ (toString <| 9 - lives)
+        ++ " lives"
+        |> Html.text
+
+
+viewDog : Dog -> Html.Html msg
+viewDog { breed } =
+    let
+        message =
+            if breed == "wolf" then
+                "I am a big scary wolf! But that's not really a breed.."
+            else
+                "I'm just a normal old " ++ breed
+    in
+        Html.text message

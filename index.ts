@@ -21,11 +21,41 @@ function isDecoder(type: TypeSignature): boolean {
     return type.signature.split(" ")[0] === "Json.Decode.Decoder";
 };
 
+function isSimpleView(type: TypeSignature): boolean {
+    let pieces = type.signature.split("->");
+
+    if (pieces.length > 2 || pieces.length < 1) return false;
+
+    pieces = pieces.map((piece) => piece.trim());
+
+    let finalTypeParts = pieces[pieces.length - 1].split(" ");
+
+    if (finalTypeParts.length === 1) return false;
+
+    if (finalTypeParts[0] != "Html.Html") return false;
+
+    return true;
+};
+
 
 function onlyDecoders(module: Module): Module {
     return {
         moduleName: module.moduleName,
         types: module.types.filter(isDecoder)
+    };
+};
+
+function onlySimpleViews(module: Module): Module {
+    return {
+        moduleName: module.moduleName,
+        types: module.types.filter(isSimpleView)
+    };
+};
+
+function onlyDecodersAndSimpleViews(module: Module): Module {
+    return {
+        moduleName: module.moduleName,
+        types: module.types.filter((item) => isSimpleView(item) || isDecoder(item) )
     };
 };
 
@@ -38,22 +68,168 @@ function fullDecoderName(module: Module, type: TypeSignature) : string {
     return module.moduleName + "." + type.name;
 };
 
+function fullSimpleViewName(module: Module, type: TypeSignature) : string {
+    if (module.moduleName === "") return type.name;
+
+    return module.moduleName + "." + type.name;
+};
+
+function viewConstructor(signature : string) : string {
+    let firstPart = signature.split("->")[0];
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let constructorName = withoutSpaces + "Constructor";
+
+    return constructorName;
+};
+
+
+function decoderConstructor(type : TypeSignature) : string {
+    let firstPart = type.signature;
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let constructorName = withoutSpaces + "Constructor";
+
+    return constructorName;
+};
+
+
+function decoderConstructorWithArg(type : TypeSignature) : string {
+    let firstPart = type.signature;
+    let secondPart = firstPart.split(" ")[1];
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let constructorName = withoutSpaces + "Constructor (" + secondPart + ")";
+
+    return constructorName;
+};
+
+function decoderConstructorWithVar(type : TypeSignature) : string {
+    let firstPart = type.signature;
+    let secondPart = firstPart.split(" ")[1];
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let constructorName = withoutSpaces + "Constructor model";
+
+    return constructorName;
+};
+
+function callViewWithModel(module : Module, type: TypeSignature) : string {
+    return fullSimpleViewName(module, type) + " model";
+};
+
+
+function decoderConstructorToView(pair: ViewAndDecoderPair) : string {
+    return `${decoderConstructorWithVar(pair.decoder)} -> ${callViewWithModel(pair.viewModule, pair.view)}`
+};
+
+function decoderConstructorToString(pair: ViewAndDecoderPair) : string {
+    return `${decoderConstructorWithVar(pair.decoder)} -> toString model`
+};
+
+function constructorPattern(type: TypeSignature) : string {
+    let firstPart = type.signature.split("->")[0];
+    let withoutSpaces = firstPart.split(" ").join("");
+    let patternName = withoutSpaces + "Constructor -> " + type.name;
+
+    return patternName;
+};
+
+interface ViewAndDecoderPair {
+    decoder : TypeSignature,
+    view : TypeSignature,
+    decoderModule : Module,
+    viewModule: Module
+};
+
+function isAPair(decoder: TypeSignature, view: TypeSignature) : boolean {
+    let decoderType = decoder.signature.substr(decoder.signature.indexOf(" ")).trim();
+    let viewType = view.signature.split(" -> ")[0].trim();
+
+    return viewType === decoderType;
+}
+
+function viewAndDecoderPairs(modules: Module[]) : ViewAndDecoderPair[] {
+    const pairs : ViewAndDecoderPair[] = [];
+
+    modules.forEach((outerModule) => {
+        modules.forEach((innerModule) => {
+
+            onlyDecoders(outerModule).types.forEach((decoder) => {
+
+                const foundAPair = onlySimpleViews(innerModule).types.every((view) => {
+                    if (isAPair(decoder, view)) {
+                        pairs.push({
+                            decoder: decoder,
+                            view: view,
+                            viewModule: innerModule,
+                            decoderModule: outerModule
+                        });
+
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                if (foundAPair) {
+                    pairs.push({
+                        decoder: decoder, 
+                        view: { name: "Html.text <| toString", signature: "KnownDecoders -> Html.Html msg" },
+                        viewModule : { moduleName: "", types: []},
+                        decoderModule : outerModule
+                    });
+                }
+            });
+        });
+    });
+
+
+    return pairs;
+};
+
 
 
 function elmFile (modules: Module[]) : string {
-    const importLines = imports(modules.filter((module) => module.types.length > 0));
-    const allDecoderNames : string[] = [];
+    const importLines = imports(modules);
+    const onlyDecodersModules = modules.map(onlyDecoders);
+    const onlySimpleViewsModules = modules.map(onlySimpleViews);
 
-    modules.forEach((module) => {
+    const allDecoderNames : string[] = [];
+    const allDecoders : TypeSignature[] = [];
+    const decoderConstructors : string[] = [];
+    const moduleTuples : string[] = [];
+
+    onlyDecodersModules.forEach((module) => {
         module.types.forEach((type) =>{
-            allDecoderNames.push(fullDecoderName(module, type));
+            const fullName = fullDecoderName(module, type);
+            allDecoderNames.push(fullName);
+            allDecoders.push(type);
+
+
+            moduleTuples.push(`(\"${fullName}\", Json.Decode.map (${decoderConstructor(type)}) ${fullName})`);
+            
+            decoderConstructors.push(decoderConstructorWithArg(type));
         })
     });
 
-    const moduleTuples = allDecoderNames.map((decoderName) => {
+    if (decoderConstructors.length === 0) { decoderConstructors.push( "NULL")}
 
-        return `(\"${decoderName}\", Json.Decode.map (toString) ${decoderName})`;
+    const allSimpleViewNames : string[] = [];
+
+    onlySimpleViewsModules.forEach((module) => {
+        module.types.forEach((type) =>{
+            allSimpleViewNames.push(fullSimpleViewName(module, type));
+        })
     });
+
+    const pairs = viewAndDecoderPairs(modules);
+
+    const viewCases = pairs.map(decoderConstructorToView);
+    const resultCases = pairs.map(decoderConstructorToString);
+
+
+    const viewConstructors = allSimpleViewNames.map((viewName) => {
+        return viewConstructor(viewName);
+    });
+
+    if (viewConstructors.length === 0) { viewConstructors.push( "NULL")}
 
     return  `
 
@@ -67,7 +243,7 @@ import Json.Decode
 
 ${importLines.join("\n")}
 
-decodersByName : Dict.Dict String (Json.Decode.Decoder String)
+decodersByName : Dict.Dict String (Json.Decode.Decoder KnownDecoders)
 decodersByName = 
     Dict.fromList 
         [ ${moduleTuples.join("\n        , ")}
@@ -79,10 +255,29 @@ type Msg
     | SetCurrentResult String
 
 
+type KnownDecoders 
+    = ${decoderConstructors.join("\n    | ")}
+
+type KnownViews 
+    = ${viewConstructors.join("\n    | ")}
+
+
+viewAResult : KnownDecoders -> Html.Html msg 
+viewAResult decoder = 
+    case decoder of 
+        ${viewCases.join("\n        ")}
+
+
+resultToEnglish : KnownDecoders -> String
+resultToEnglish decoder = 
+    case decoder of 
+        ${resultCases.join("\n        ")}
+
+
 type alias Model =
     { json : String
     , tempJson : String
-    , knownDecoders : Dict.Dict String (Json.Decode.Decoder String)
+    , knownDecoders : Dict.Dict String (Json.Decode.Decoder KnownDecoders)
     , visibleResult : Maybe String
     }
 
@@ -96,11 +291,11 @@ viewHowManyRan model amount =
         |> Html.text
 
 
-runDecoder : Json.Decode.Decoder String -> String -> Result String String 
+runDecoder : Json.Decode.Decoder KnownDecoders -> String -> Result String KnownDecoders 
 runDecoder = 
     Json.Decode.decodeString
 
-viewSimpleResult : String -> Result String String -> Html.Html Msg
+viewSimpleResult : String -> Result String KnownDecoders -> Html.Html Msg
 viewSimpleResult decoderName result =
     let
         color =
@@ -142,20 +337,30 @@ viewSuccessfulThing model =
         Nothing -> Html.text ""
 
         Just result ->
-            Html.div 
-                []
-                [ Html.span [ ] [ Html.text <| "The decoder known as " ++ result ++ " produced the following value: " ]
-                , Html.p [ ] [ 
-                    case Dict.get result model.knownDecoders of 
-                        Just foundDecoder -> 
-                            case runDecoder foundDecoder model.json of 
-                                Ok v -> Html.text v 
-                                Err e -> Html.text e
+            case Dict.get result model.knownDecoders of 
+                Just foundDecoder ->
+                    let    
+                        runResult = runDecoder foundDecoder model.json
+                    in 
+                        Html.div 
+                            []
+                            [ Html.span [ ] [ Html.text <| "The decoder known as " ++ result ++ " produced the following value: " ]
+                            , Html.p [ ] [ 
+                                case runResult of 
+                                    Ok v -> Html.div [] [ Html.text (resultToEnglish v) ]
+                                    Err e -> Html.text e
+                                ]
+                            , Html.span [] [ Html.text <| "And I found this view: " ]
+                            , Html.div [] [
+                                case runResult of
+                                    Ok v -> viewAResult v 
+                                    Err _ -> Html.text ""
+                                ]
 
-                        Nothing ->
-                            Html.text ""
-                    ]
-                ] 
+                            ] 
+
+                Nothing ->
+                    Html.text ""
             
 
 
@@ -273,12 +478,15 @@ function main(){
             console.log("It exited with the code:", code);
             process.exit(code);
         }
-        const parsedData = JSON.parse(readData);
+        const parsedData = JSON.parse(readData) as Module[];
 
-        const modulesWithOnlyDecoders = parsedData.map(onlyDecoders);
+        const modulesWithOnlyDecodersOrViews = parsedData
+            .filter((module) => (module.moduleName != "DebugDecoders"))
+            .map(onlyDecodersAndSimpleViews)
+            .filter((module) => module.types.length > 0);
 
         console.log('Creating a file at', path + "/DebugDecoders.elm");
-        fs.writeFileSync(path + "/DebugDecoders.elm", elmFile(modulesWithOnlyDecoders));
+        fs.writeFileSync(path + "/DebugDecoders.elm", elmFile(modulesWithOnlyDecodersOrViews));
         console.log("Open it with elm-reactor!");
     });
     
