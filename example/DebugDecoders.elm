@@ -25,9 +25,9 @@ type Msg
 
 
 type KnownDecoders 
-    = Json_Decode_DecoderMain_CatConstructor (Main.Cat)
-    | Json_Decode_DecoderMain_DogConstructor (Main.Dog)
-    | Json_Decode_DecoderMain_UserConstructor (Main.User)
+    = Json_Decode_DecoderMain_CatConstructor ( Main.Cat)
+    | Json_Decode_DecoderMain_DogConstructor ( Main.Dog)
+    | Json_Decode_DecoderMain_UserConstructor ( Main.User)
 
 type KnownViews 
     = Main_viewCatConstructor
