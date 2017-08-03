@@ -27,5 +27,15 @@ elm-debug-decoders
 
 You then need to open the `DebugDecoders.elm` file inside elm-reactor, and paste your JSON into the text field!
 
+It will also go through and find all the views you have that take in data that you have a decoder for. You may need to temporarily expose all your views in order to use this!
 
+
+
+## Changelog
+
+
+- 0.0.8 awesome redesign via @stil4m
+- 0.0.7 the ability to automatically use the right views
+- 0.0.5 sorting of decoders and ability to see what was decoded
+- 0.0.4 (initial release)
 
