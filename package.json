@@ -1,6 +1,6 @@
 {
   "name": "elm-debug-decoders",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A tool to help debug decoders in Elm",
   "main": "index.js",
   "bin": {

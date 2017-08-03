@@ -85,7 +85,7 @@ function viewConstructor(signature : string) : string {
 
 function decoderConstructor(type : TypeSignature) : string {
     let firstPart = type.signature;
-    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_").split("(").join("_").split(")").join("_");
     let constructorName = withoutSpaces + "Constructor";
 
     return constructorName;
@@ -94,8 +94,8 @@ function decoderConstructor(type : TypeSignature) : string {
 
 function decoderConstructorWithArg(type : TypeSignature) : string {
     let firstPart = type.signature;
-    let secondPart = firstPart.split(" ")[1];
-    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let secondPart = firstPart.substr(firstPart.indexOf(" "));
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_").split("(").join("_").split(")").join("_");
     let constructorName = withoutSpaces + "Constructor (" + secondPart + ")";
 
     return constructorName;
@@ -103,8 +103,8 @@ function decoderConstructorWithArg(type : TypeSignature) : string {
 
 function decoderConstructorWithVar(type : TypeSignature) : string {
     let firstPart = type.signature;
-    let secondPart = firstPart.split(" ")[1];
-    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_");
+    let secondPart = firstPart.substr(firstPart.indexOf(" "));
+    let withoutSpaces = firstPart.split(" ").join("").split(".").join("_").split("(").join("_").split(")").join("_");
     let constructorName = withoutSpaces + "Constructor model";
 
     return constructorName;
@@ -149,11 +149,11 @@ function viewAndDecoderPairs(modules: Module[]) : ViewAndDecoderPair[] {
     const pairs : ViewAndDecoderPair[] = [];
 
     modules.forEach((outerModule) => {
-        modules.forEach((innerModule) => {
+        onlyDecoders(outerModule).types.forEach((decoder) => {
+            let foundAPair = false;
 
-            onlyDecoders(outerModule).types.forEach((decoder) => {
-
-                const foundAPair = onlySimpleViews(innerModule).types.every((view) => {
+            modules.every((innerModule) => {
+                onlySimpleViews(innerModule).types.every((view) => {
                     if (isAPair(decoder, view)) {
                         pairs.push({
                             decoder: decoder,
@@ -162,21 +162,26 @@ function viewAndDecoderPairs(modules: Module[]) : ViewAndDecoderPair[] {
                             decoderModule: outerModule
                         });
 
+                        foundAPair = true;
                         return false;
                     }
 
                     return true;
                 });
 
-                if (foundAPair) {
-                    pairs.push({
-                        decoder: decoder, 
-                        view: { name: "Html.text <| toString", signature: "KnownDecoders -> Html.Html msg" },
-                        viewModule : { moduleName: "", types: []},
-                        decoderModule : outerModule
-                    });
-                }
+                if (foundAPair) return false;
+
+                return true;
             });
+
+            if (!foundAPair) {
+                pairs.push({
+                    decoder: decoder, 
+                    view: { name: "Html.text <| toString", signature: "KnownDecoders -> Html.Html msg" },
+                    viewModule : { moduleName: "", types: []},
+                    decoderModule : outerModule
+                });
+            }
         });
     });
 
@@ -221,9 +226,11 @@ function elmFile (modules: Module[]) : string {
 
     const pairs = viewAndDecoderPairs(modules);
 
-    const viewCases = pairs.map(decoderConstructorToView);
-    const resultCases = pairs.map(decoderConstructorToString);
+    let viewCases = pairs.map(decoderConstructorToView);
+    viewCases = viewCases.filter((v, i, a) => a.indexOf(v) === i);
 
+    let resultCases = pairs.map(decoderConstructorToString);
+    resultCases = resultCases.filter((v, i, a) => a.indexOf(v) === i);
 
     const viewConstructors = allSimpleViewNames.map((viewName) => {
         return viewConstructor(viewName);
