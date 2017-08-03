@@ -177,7 +177,7 @@ function viewAndDecoderPairs(modules: Module[]) : ViewAndDecoderPair[] {
             if (!foundAPair) {
                 pairs.push({
                     decoder: decoder,
-                    view: { name: "Html.text <| toString", signature: "KnownDecoders -> Html.Html msg" },
+                    view: { name: "(\\_ -> Html.text \"\" )", signature: "KnownDecoders -> Html.Html msg" },
                     viewModule : { moduleName: "", types: []},
                     decoderModule : outerModule
                 });
@@ -343,8 +343,14 @@ viewSimpleResult opened decoderName result =
                         Err resultText ->
                             styledPre resultText
 
-                        Ok resultText ->
-                            styledPre (resultToEnglish resultText)
+                        Ok result ->
+                            styledPre (resultToEnglish result)
+                    , case result of
+                        Err error ->
+                            Html.text ""
+
+                        Ok result ->
+                            viewAResult result
                     ]
               else
                 Html.text ""
@@ -399,7 +405,7 @@ viewInputJson model =
     Html.div
         []
         [ Html.textarea
-            [ Html.Attributes.style [ ( "width", "100%" ), ( "height", "500px" ) ]
+            [ Html.Attributes.style [ ( "width", "100%" ), ( "height", "500px" ), ("font-size", "22px") ]
             , Html.Events.onInput ChangeJson
             , Html.Attributes.value model.tempJson
             ]
